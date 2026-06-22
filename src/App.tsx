@@ -5,6 +5,7 @@ import {
   RemoteModel, Message, Usage, Conversation,
   inputRatePerM, outputRatePerM, generateTitle, modelBrand
 } from './types'
+import { trimHistory } from './lib/trimHistory'
 import InputBar from './components/Chat/InputBar'
 import MessageBubble from './components/Chat/MessageBubble'
 import TokenCounter from './components/Tokens/TokenCounter'
@@ -206,9 +207,15 @@ export default function App() {
         }
       })
 
+      const { messages: trimmedMessages, trimmed } = trimHistory(messagesRef.current, selectedModel?.contextLength)
+
+      if(trimmed > 0) {
+        console.info('Trimmed message to fit context window')
+      }
+
       await invoke('chat', {
         modelId,
-        messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
+        messages: trimmedMessages.map(m => ({ role: m.role, content: m.content })),
         apiKey,
       })
     } catch (e) {

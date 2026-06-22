@@ -24,6 +24,7 @@ pub struct ModelArchitecture {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct RemoteModel {
     pub id: String,
     pub name: String,
