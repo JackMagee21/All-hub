@@ -17,6 +17,7 @@ AI Hub is a personal desktop chat application built with **Tauri 2 + React + Typ
 | Backend | Rust (inside Tauri core) | Handles HTTP, streaming, no Node server in production |
 | HTTP client | reqwest (Rust, async + streaming) | Async SSE streaming from AI providers |
 | Hosted models | OpenRouter | One API key covers all hosted models |
+| Local persistence | idb (IndexedDB) | Conversation history survives app restarts |
 | Token counting | gpt-tokenizer | Live estimates while typing |
 
 ---
@@ -25,92 +26,123 @@ AI Hub is a personal desktop chat application built with **Tauri 2 + React + Typ
 
 ### 1. Streaming Chat (Rust backend)
 
-The core of the app. The Rust backend (`src-tauri/src/lib.rs`) handles:
+The core of the app. Lives in `src-tauri/src/commands/chat.rs`:
 
-- Sending a chat request to OpenRouter via `reqwest`
-- Reading the SSE (Server-Sent Events) stream token by token
-- Emitting each token to the frontend as a Tauri event (`chat-token`)
-- Parsing the final usage chunk from OpenRouter (`stream_options: { include_usage: true }`)
-- Emitting usage stats (prompt tokens, completion tokens) on completion (`chat-done`)
-- Returning HTTP errors cleanly as Rust `Err(String)` so they surface in the UI
+- Sends chat requests to OpenRouter via `reqwest`
+- Reads the SSE stream token by token
+- Emits each token to the frontend as a Tauri event (`chat-token`)
+- Parses the final usage chunk (`stream_options: { include_usage: true }`)
+- Emits usage stats on completion (`chat-done`)
+- Returns HTTP errors cleanly as Rust `Err(String)` so they surface in the UI
 
-The Tauri command signature:
-```rust
-async fn chat(app: AppHandle, model_id: String, messages: Vec<ChatMessage>, api_key: String)
-```
+### 2. OS Keychain Integration
 
-The frontend triggers it via `invoke('chat', {...})` and listens for events via `listen('chat-token', ...)`.
+API keys are stored in the Windows Credential Manager via the `keyring` crate. Three Tauri commands in `src-tauri/src/commands/keys.rs`:
 
-### 2. Live Token Counter + Cost Meter
+- `save_key(key)` — writes to the OS credential store
+- `get_key()` — reads on startup; returns `None` if not set
+- `delete_key()` — clears the stored credential
+
+On startup the app checks the keychain. If no key is found, a full-screen `KeySetup` prompt is shown. Once set, the key is loaded silently on every subsequent launch. A `KeyManager` button in the header allows updating or removing the key without re-entering setup.
+
+### 3. Dynamic Model Picker
+
+Instead of a hardcoded registry, the app fetches the full OpenRouter model catalogue at startup via `fetch_models` (Rust command → `GET https://openrouter.ai/api/v1/models`). The model picker:
+
+- Filters to text-output models only (excludes image/audio generation)
+- Has a search box (needed — there are 300+ models)
+- Has a Free / All tab toggle
+- Shows each model's name, ID, and input price per million tokens
+- Shows a green `free` badge on zero-cost models
+- Opens upward from its position
+- Auto-selects the default model on load so cost rates are available immediately
+
+Pricing data from the API drives the cost calculation — no hardcoded rates.
+
+### 4. Live Token Counter + Cost Meter
 
 Two sources of token data run in parallel:
 
-- **Live estimate** — `gpt-tokenizer` runs in the browser as the user types, showing `~N tokens` before sending
-- **Real counts** — parsed from OpenRouter's `usage` field in the final SSE chunk after each response
+- **Live estimate** — `gpt-tokenizer` runs in the browser as the user types, showing `~N tokens`
+- **Real counts** — parsed from OpenRouter's `usage` field after each response
 
-Cost is calculated as:
+Cost per turn:
 ```
 cost = (prompt_tokens / 1,000,000) × inputRatePerM
      + (completion_tokens / 1,000,000) × outputRatePerM
 ```
 
-Rates come from the selected model's live pricing data (see Model Picker below). Displayed below the input bar as `↑ 156 · ↓ 89 · $0.00006`.
+Displayed below the input bar as `↑ 156 · ↓ 89 · $0.00006`. Rates update automatically when a different model is selected.
 
-### 3. Dynamic Model Picker
+### 5. Chat UI
 
-Instead of a hardcoded registry, the app fetches the full OpenRouter model catalogue at startup:
-
-```
-GET https://openrouter.ai/api/v1/models
-```
-
-The Rust `fetch_models` command fetches and deserialises the response, returning a `Vec<RemoteModel>` to the frontend. The model picker then:
-
-- Filters to text-output models only (excludes image/audio generation)
-- Provides a search box (needed — there are 300+ models)
-- Has a Free/All tab toggle
-- Shows each model's ID, name, and input price per million tokens
-- Shows a green `free` badge on zero-cost models
-
-Selecting a model updates the active `modelId` used in `invoke('chat', ...)` and the rate used for cost calculation.
-
-### 4. Chat UI
-
-The message list renders user and assistant messages as distinct components:
-
-- **User messages** — right-aligned, subtle dark bubble with border
-- **Assistant messages** — left-aligned plain text with an avatar indicator
+- **User messages** — right-aligned dark bubble with border
+- **Assistant messages** — left-aligned plain text with coloured avatar
 - **Waiting state** — animated three-dot pulse while streaming begins
-- **Auto-scroll** — a `ref` on a div at the bottom of the list scrolls into view on each state update
+- **Auto-scroll** — scrolls to bottom on each new message
+- **Input bar** — auto-resizing textarea (grows to 200px), Enter to send, Shift+Enter for newline, send button disabled while streaming or when empty
 
-The input bar (`InputBar.tsx`) features:
-- Auto-resizing textarea (grows up to 200px, then scrolls)
-- Enter to send, Shift+Enter for newline
-- Send button disabled while streaming is in progress
-- Send button disabled when input is empty
+### 6. IndexedDB Persistence
 
-### 5. Tauri Capabilities + Permissions
+Conversations are saved to IndexedDB via the `idb` library (`src/lib/db.ts`). Persistence operations:
 
-Tauri 2 uses a capability file (`src-tauri/capabilities/default.json`) to control what the webview is allowed to do. The key lesson from setup: the `local: true` flag is required for permissions to apply to local webview content, and inline capabilities in `tauri.conf.json` conflict with file-based ones if both use the same identifier.
+- `saveConversation` — upsert on every turn (twice: after user message, after assistant response)
+- `loadConversations` — called on startup, returns all conversations sorted by most recent
+- `deleteConversation` — removes from DB and sidebar list
+- `toggleFavorite` — flips the `favorite` flag and persists
 
-Working capability config:
-```json
-{
-  "local": true,
-  "windows": ["main"],
-  "permissions": [
-    "core:default",
-    "core:event:allow-listen",
-    "core:event:allow-unlisten",
-    "core:event:allow-emit",
-    "core:event:allow-emit-to"
-  ]
-}
+Each `Conversation` stores: `id`, `title` (auto-generated from first user message), `modelId`, `modelName`, `messages`, `totalCost`, `totalTokens`, `favorite`, `createdAt`, `updatedAt`.
+
+### 7. Sidebar + Conversation List
+
+A fixed 240px sidebar shows all past conversations:
+
+- **Favourites section** — pinned at the top, gold star always visible
+- **Date groups** — Today, Yesterday, Last 7 days, Older
+- **Per-item info** — conversation title + model brand name in the model's brand colour (OpenAI green, Anthropic coral, Google blue, etc.)
+- **Hover actions** — star button to favourite/unfavourite, ⋯ menu with favourite toggle and delete
+- **New conversation** button in the sidebar header
+
+### 8. History Trimming
+
+Before each `invoke('chat', ...)` call, the message history is trimmed to fit within the model's context window (`src/lib/trimHistory.ts`):
+
+- Budget: 50% of the model's `contextLength` (leaves room for the response)
+- Strategy: sliding window — works backwards from most recent, keeps messages that fit
+- If `contextLength` is unknown, trimming is skipped
+- A subtle notice appears above the input when messages were trimmed: `"N older messages trimmed to fit context window"`
+
+### 9. Code Architecture
+
+**Rust** is split into focused modules:
+
+```
+src-tauri/src/
+├── lib.rs              # run() and module declarations only
+├── main.rs             # calls ai_hub_lib::run()
+├── build.rs            # tauri_build::build()
+├── types.rs            # ChatMessage, Usage, RemoteModel, ModelPricing, etc.
+└── commands/
+    ├── mod.rs
+    ├── chat.rs         # streaming chat command
+    ├── models.rs       # fetch_models command
+    └── keys.rs         # save_key, get_key, delete_key
 ```
 
-### 6. Theming
+**Frontend** logic lives in custom hooks:
 
-Global design tokens live in `src/styles/global.css` as CSS custom properties. The current theme is dark, broadly inspired by Claude's interface:
+```
+src/hooks/
+├── useKeychain.ts    # OS keychain load/save/clear
+├── useHistory.ts     # IndexedDB CRUD, active conversation state
+└── useChat.ts        # streaming, input, trim, event listeners
+```
+
+`App.tsx` is a thin coordinator (~120 lines) — it calls the three hooks, wires their outputs together, and renders the layout.
+
+### 10. Theming
+
+Global design tokens in `src/styles/global.css`:
 
 ```css
 --bg: #212121
@@ -118,9 +150,10 @@ Global design tokens live in `src/styles/global.css` as CSS custom properties. T
 --accent: #cc785c       /* warm coral */
 --text: #ececec
 --text-muted: #8e8ea0
+--max-width: 720px
 ```
 
-Scrollbars are styled with `::-webkit-scrollbar` (works because Tauri uses a Chromium-based webview).
+Scrollbars styled with `::-webkit-scrollbar` (Tauri uses a Chromium-based webview).
 
 ---
 
@@ -129,39 +162,61 @@ Scrollbars are styled with `::-webkit-scrollbar` (works because Tauri uses a Chr
 ```
 ai-hub/
 ├── src/
-│   ├── App.tsx                        # State, wiring, layout
-│   ├── types.ts                       # Shared TypeScript interfaces + helpers
+│   ├── App.tsx
+│   ├── types.ts                          # interfaces, helpers (modelBrand, isFree, etc.)
 │   ├── styles/
-│   │   └── global.css                 # Design tokens, resets, scrollbar
+│   │   └── global.css
 │   ├── components/
 │   │   ├── Chat/
-│   │   │   ├── InputBar.tsx           # Auto-resize textarea, send button
-│   │   │   ├── MessageBubble.tsx      # User + assistant message rendering
-│   │   │   └── MessageList (removed)  # Replaced by MessageBubble directly
+│   │   │   ├── InputBar.tsx + .module.css
+│   │   │   └── MessageBubble.tsx + .module.css
 │   │   ├── Meters/
-│   │   │   └── TokenCounter.tsx       # Live estimate + real usage display
-│   │   └── Sidebar/
-│   │       └── ModelPicker.tsx        # Live model list from OpenRouter API
+│   │   │   └── TokenCounter.tsx + .module.css
+│   │   ├── Sidebar/
+│   │   │   ├── Sidebar.tsx + .module.css
+│   │   │   ├── ConversationList.tsx + .module.css
+│   │   │   └── ModelPicker.tsx + .module.css
+│   │   ├── KeySetup.tsx + .module.css    # first-launch key entry screen
+│   │   └── KeyManager.tsx + .module.css  # header button to update/remove key
+│   ├── hooks/
+│   │   ├── useKeychain.ts
+│   │   ├── useHistory.ts
+│   │   └── useChat.ts
 │   └── lib/
-│       └── tokenizer.ts               # gpt-tokenizer wrapper
+│       ├── tokenizer.ts                  # gpt-tokenizer wrapper
+│       ├── trimHistory.ts                # sliding window context trim
+│       └── db.ts                         # idb setup + CRUD
 │
-└── src-tauri/src/
-    ├── lib.rs                         # All Rust logic: chat, fetch_models, types
-    ├── main.rs                        # Entry point → ai_hub_lib::run()
-    └── build.rs                       # tauri_build::build()
+└── src-tauri/
+    ├── build.rs
+    ├── Cargo.toml
+    ├── tauri.conf.json
+    ├── capabilities/
+    │   └── default.json
+    └── src/
+        ├── lib.rs
+        ├── main.rs
+        ├── types.rs
+        └── commands/
+            ├── mod.rs
+            ├── chat.rs
+            ├── models.rs
+            └── keys.rs
 ```
 
 ---
 
 ## Known Issues and Edge Cases
 
-**Duplicate event listeners** — Fixed. Previously, rapid sends would stack `chat-token` listeners causing doubled output. Now unlisten refs are cleaned up at the start of each send.
+**Duplicate event listeners** — Fixed. Unlisten refs are cleaned up at the start of each send so stale listeners never stack.
 
-**Silent HTTP errors** — Fixed. A 402 (insufficient credits) or 401 (bad API key) would previously return nothing. The Rust command now checks `response.status().is_success()` before streaming and returns the error body as a Rust `Err`.
+**Silent HTTP errors** — Fixed. The Rust chat command checks `response.status().is_success()` before streaming and surfaces the full error body to the UI.
 
-**Free model rate limits** — Not a bug. Free tier models on OpenRouter share capacity across all users. A 429 from a free model means the upstream provider is rate-limited. Solution is to retry, add a provider key, or use a paid model.
+**Free model rate limits** — Not a bug. A 429 from a free model means the upstream provider is rate-limited. Retry, add a SiliconFlow key in OpenRouter settings, or use a paid model.
 
-**API key in state** — The API key is held in React state and lost on every reload. This is a temporary measure. The intended solution is the OS keychain via Rust's `keyring` crate (see roadmap below).
+**`context_length` serialisation** — Fixed. The Rust `RemoteModel` struct uses `#[serde(rename_all = "camelCase")]` so `context_length` arrives as `contextLength` in TypeScript, enabling correct history trimming.
+
+**`persistConversation` stale closure** — The `persist` callback in `useHistory` has `conversations` and `activeId` as dependencies to correctly read `favorite` and `createdAt` from existing records without overwriting them.
 
 ---
 
@@ -169,69 +224,53 @@ ai-hub/
 
 ### High Priority
 
-**OS Keychain for API Key storage**
-The API key input in the header is a placeholder. The `keyring` crate is already in the project spec. This means:
-- A Tauri command `save_key(key: String)` that writes to the OS credential store
-- A Tauri command `get_key()` that reads it back on startup
-- Remove the visible API key input from the header entirely
+**Markdown Rendering**
+The single biggest quality-of-life gap. Assistant responses render as raw markdown syntax — code blocks, bullet points, and bold text all appear as plain text. A lightweight renderer like `react-markdown` (with `remark-gfm` for GitHub-flavoured markdown) would fix this. Code blocks should get syntax highlighting via `highlight.js` or `prism`.
 
-**Conversation History (IndexedDB)**
-Currently all conversations are lost when the app closes. The spec calls for `idb` (IndexedDB wrapper library):
-- Auto-save every message to a `Conversation` object in IndexedDB
-- Load conversations on startup and display them in a sidebar list
-- Each conversation stores its `modelId`, `messages`, `totalCost`, and `totalTokens`
-
-**Sidebar + Conversation List**
-The left sidebar (planned in the spec) should show past conversations grouped by date, with titles auto-generated from the first user message.
+**System Prompt Support**
+No way to set a system prompt currently. Should be a collapsible panel or per-conversation settings drawer that prepends `{ role: 'system', content }` to every request. Useful for personas, formatting instructions, or domain constraints.
 
 ### Medium Priority
 
-**History Trimming**
-The full message history is re-sent on every turn, which means input token costs grow with conversation length. The spec describes a sliding window trim in Rust:
-- Keep system message + most recent messages within a token budget
-- Budget defaults to 50% of the model's context window
-- Prevents runaway costs on long conversations
-
-**System Prompt Support**
-No way to set a system prompt currently. Should be a collapsible panel or settings drawer with a textarea that prepends a `{ role: 'system', content }` message to every request.
+**Configurable `max_tokens`**
+Currently hardcoded to `1024` in `commands/chat.rs`. Should be a per-model setting derived from the model's `top_provider.max_completion_tokens` from the OpenRouter API, or a user-configurable value in a settings panel.
 
 **Ollama (Local Models)**
-The spec includes an Ollama adapter for local models (`http://localhost:11434/api/chat`). This means:
-- A second Rust adapter alongside the OpenRouter one
+The spec includes an Ollama adapter for local models (`http://localhost:11434/api/chat`). Requires:
+- A second Rust adapter in `commands/`
 - Checking if Ollama is running before showing local models in the picker
-- Gracefully hiding local models if the Ollama server is unreachable
+- Gracefully hiding local models if the server is unreachable
 
-**Configurable `max_tokens`**
-Currently hardcoded to `1024`. Should be a per-model or per-conversation setting, or at minimum configurable in a settings panel.
+**Error Recovery UI**
+Errors appear as plain red text. A retry button, clearer error categorisation (auth error vs rate limit vs network failure), and dismissible error cards would improve the experience significantly.
+
+**Settings Panel**
+A dedicated settings view consolidating: default model selection, `max_tokens` override, history trim budget, theme toggle (light/dark), and API key management.
 
 ### Lower Priority
 
-**Markdown Rendering**
-Assistant responses are rendered as plain text. Code blocks, bullet points, and bold text from the AI come through as raw markdown syntax. A lightweight renderer like `marked` or `react-markdown` would significantly improve readability.
-
 **Message-level Token Counts**
-The spec's `Message` interface includes `tokenCount` and `cost` per message. These could be shown on hover for granular cost visibility.
+The `Message` interface could carry `tokenCount` and `cost` fields, shown on hover for granular per-message cost visibility.
 
 **Export / Copy**
-No way to copy a full conversation or export it as markdown or plain text.
+No way to copy a full conversation or export it as markdown or plain text. A button in the conversation header or sidebar options menu would cover this.
 
-**Settings Panel**
-A dedicated settings view for API key management, default model, `max_tokens`, theme (light/dark), and token budget configuration.
+**Light Theme**
+The app is dark-only. A light theme using the same CSS custom property system would be straightforward to add once a settings panel exists.
 
-**Error Recovery UI**
-Errors currently appear as plain red text. A proper retry button and clearer error messaging (especially distinguishing auth errors from rate limits from network failures) would improve the experience.
+**Conversation Rename**
+Titles are auto-generated from the first user message. A double-click or edit option in the sidebar would let users give conversations meaningful names.
 
 ---
 
-## Build Order (Remaining)
+## Remaining Build Order
 
-Following the original spec priority:
-
-1. **OS Keychain** — unblock API key security, remove the header input
-2. **IndexedDB persistence** — conversations survive app restarts
-3. **Sidebar + Conversation list** — makes the app feel complete
-4. **History trimming** — cost control on long conversations
-5. **Markdown rendering** — major quality-of-life improvement
-6. **System prompt support** — unlocks practical use cases
-7. **Ollama adapter** — local model support
-8. **Settings panel** — consolidate all configuration
+1. **Markdown rendering** — biggest day-to-day quality gap
+2. **System prompt support** — unlocks practical use cases
+3. **Configurable max_tokens** — remove the hardcoded 1024 ceiling
+4. **Settings panel** — consolidate configuration in one place
+5. **Ollama adapter** — local model support
+6. **Error recovery UI** — retry button, better error messages
+7. **Export / copy** — conversation portability
+8. **Light theme** — once settings panel exists
+9. **Conversation rename** — polish
