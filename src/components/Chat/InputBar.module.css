@@ -1,15 +1,19 @@
 .container {
   display: flex;
   flex-direction: column;
-  background: var(--input-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-input);
-  padding: 12px 10px 8px 16px;
-  transition: border-color 0.15s;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--input-radius);
+  padding: var(--s3) var(--s3) var(--s2) var(--s4);
+  transition:
+    border-color var(--t-base),
+    box-shadow var(--t-base);
+  position: relative;
 }
 
 .container:focus-within {
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--accent-glow), var(--shadow-sm);
 }
 
 .textarea {
@@ -18,28 +22,25 @@
   outline: none;
   color: var(--text);
   font-family: inherit;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.6;
   resize: none;
-  min-height: 24px;
+  min-height: 22px;
   max-height: 200px;
   overflow-y: auto;
   width: 100%;
 }
 
-.textarea::placeholder {
-  color: var(--text-muted);
-}
+.textarea::placeholder { color: var(--text-muted); }
 
-.textarea:disabled {
-  opacity: 0.6;
-}
+.textarea:disabled { opacity: 0.5; }
 
 .bottomBar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 6px;
+  margin-top: var(--s2);
+  min-height: 28px;
 }
 
 .bottomLeft {
@@ -49,9 +50,9 @@
 
 .sendBtn {
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-sm);
   border: none;
   background: var(--accent);
   color: white;
@@ -59,14 +60,25 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s, opacity 0.15s;
+  transition:
+    background var(--t-fast),
+    opacity var(--t-fast),
+    transform var(--t-fast),
+    box-shadow var(--t-fast);
+  box-shadow: 0 1px 3px rgba(217, 123, 82, 0.3);
 }
 
 .sendBtn:hover:not(:disabled) {
   background: var(--accent-hover);
+  box-shadow: 0 2px 8px rgba(217, 123, 82, 0.4);
+}
+
+.sendBtn:active:not(:disabled) {
+  transform: scale(0.93);
 }
 
 .sendBtn:disabled {
-  opacity: 0.35;
+  opacity: 0.3;
   cursor: not-allowed;
+  box-shadow: none;
 }
