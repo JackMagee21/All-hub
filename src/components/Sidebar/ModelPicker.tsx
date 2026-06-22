@@ -18,10 +18,17 @@ export default function ModelPicker({ selectedId, onSelect }: Props) {
   const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    setLoading(true)
-    invoke<RemoteModel[]>('fetch_models')
-      .then(data => setModels(data.filter(isTextModel)))
-      .finally(() => setLoading(false))
+  setLoading(true)
+  invoke<RemoteModel[]>('fetch_models')
+    .then(data => {
+      const filtered = data.filter(isTextModel)
+      setModels(filtered)
+
+      // Auto-select the current model so rates are available immediately
+      const current = filtered.find(m => m.id === selectedId)
+      if (current) onSelect(current)
+    })
+    .finally(() => setLoading(false))
   }, [])
 
   useEffect(() => {

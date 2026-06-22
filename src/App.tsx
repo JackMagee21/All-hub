@@ -1,19 +1,24 @@
 import { useState, useRef, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
+import { RemoteModel, Message, Usage, inputRatePerM, outputRatePerM } from './types'
 import InputBar from './components/Chat/InputBar'
 import MessageBubble from './components/Chat/MessageBubble'
 import TokenCounter from './components/Tokens/TokenCounter'
 import ModelPicker from './components/Sidebar/ModelPicker'
+import KeySetup from './components/KeySetup'
+import KeyManager from './components/KeyManager'
 import { countTokens } from './lib/tokeniser'
-import { RemoteModel, Message, Usage, inputRatePerM, outputRatePerM } from './types'
 
 const DEFAULT_MODEL = 'openai/gpt-4.1-mini'
 
+type KeyState = 'loading' | 'missing' | 'ready'
+
 export default function App() {
+  const [keyState, setKeyState] = useState<KeyState>('loading')
+  const [apiKey, setApiKey] = useState('')
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
-  const [apiKey, setApiKey] = useState('')
   const [error, setError] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [lastUsage, setLastUsage] = useState<Usage | null>(null)
@@ -24,13 +29,33 @@ export default function App() {
   const unlistenDoneRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
+    invoke<string | null>('get_key')
+      .then(key => {
+        if (key) { setApiKey(key); setKeyState('ready') }
+        else setKeyState('missing')
+      })
+      .catch(() => setKeyState('missing'))
+  }, [])
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  async function handleKeySave(key: string) {
+    await invoke('save_key', { key })
+    setApiKey(key)
+    setKeyState('ready')
+  }
+
+  function handleKeyCleared() {
+    setApiKey('')
+    setKeyState('missing')
+  }
 
   const liveTokens = countTokens(input)
 
   const cost = lastUsage && selectedModel
-    ? (lastUsage.prompt_tokens / 1_000_000) *  inputRatePerM(selectedModel) +
+    ? (lastUsage.prompt_tokens / 1_000_000) * inputRatePerM(selectedModel) +
       (lastUsage.completion_tokens / 1_000_000) * outputRatePerM(selectedModel)
     : undefined
 
@@ -89,6 +114,20 @@ export default function App() {
     }
   }
 
+  if (keyState === 'loading') return (
+    <div style={{
+      height: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: 'var(--text-muted)',
+    }}>
+      Loading…
+    </div>
+  )
+
+  if (keyState === 'missing') return <KeySetup onSave={handleKeySave} />
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
 
@@ -100,58 +139,56 @@ export default function App() {
         alignItems: 'center',
         gap: 10,
       }}>
-        
-        <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>API Key</span>
-        <input
-          type="password"
-          placeholder="sk-or-..."
-          value={apiKey}
-          onChange={e => setApiKey(e.target.value)}
-          style={{
-            width: 200,
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 8,
-            padding: '4px 10px',
-            color: 'var(--text)',
-            fontSize: 13,
-            outline: 'none',
-          }}
-        />
+        <ModelPicker selectedId={modelId} onSelect={handleModelSelect} />
+        <div style={{ flex: 1 }} />
+        <KeyManager onCleared={handleKeyCleared} onUpdated={setApiKey} />
       </div>
 
       {/* Messages */}
-      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '24px 16px' }}>
+      <div style={{
+        flex: 1,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        padding: '24px 16px',
+      }}>
         <div style={{ maxWidth: 'var(--max-width)', margin: '0 auto' }}>
           {messages.length === 0 && (
-            <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: 60 }}>
+            <p style={{
+              color: 'var(--text-muted)',
+              textAlign: 'center',
+              marginTop: 60,
+            }}>
               Start a conversation
             </p>
           )}
           {messages.map(msg => (
             <MessageBubble key={msg.id} message={msg} />
           ))}
-          {error && <p style={{ color: '#e05c5c', fontSize: 13, marginTop: 8 }}>{error}</p>}
+          {error && (
+            <p style={{ color: '#e05c5c', fontSize: 13, marginTop: 8 }}>{error}</p>
+          )}
           <div ref={bottomRef} />
         </div>
       </div>
 
       {/* Input area */}
-      <div style={{ padding: '12px 16px 20px', maxWidth: 'var(--max-width)', margin: '0 auto', width: '100%' }}>
+      <div style={{
+        padding: '12px 16px 20px',
+        maxWidth: 'var(--max-width)',
+        margin: '0 auto',
+        width: '100%',
+      }}>
         <TokenCounter
           liveTokens={liveTokens}
           promptTokens={lastUsage?.prompt_tokens}
           completionTokens={lastUsage?.completion_tokens}
           cost={cost}
         />
-        <InputBar 
-          input={input} 
-          onInputChange={setInput} 
-          onSend={send} 
-          disabled={isStreaming} 
-          bottomLeft={
-            <ModelPicker selectedId={modelId} onSelect={handleModelSelect} />
-          } 
+        <InputBar
+          input={input}
+          onInputChange={setInput}
+          onSend={send}
+          disabled={isStreaming}
         />
       </div>
 

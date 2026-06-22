@@ -6,10 +6,9 @@ interface Props {
   onInputChange: (val: string) => void
   onSend: () => void
   disabled?: boolean
-  bottomLeft?: React.ReactNode
 }
 
-export default function InputBar({ input, onInputChange, onSend, disabled, bottomLeft }: Props) {
+export default function InputBar({ input, onInputChange, onSend, disabled }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -40,22 +39,17 @@ export default function InputBar({ input, onInputChange, onSend, disabled, botto
         rows={1}
         disabled={disabled}
       />
-      <div className={styles.bottomBar}>
-        <div className={styles.bottomLeft}>
-          {bottomLeft}
-        </div>
-        <button
-          className={styles.sendBtn}
-          onClick={onSend}
-          disabled={!canSend}
-          aria-label="Send"
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M8 13V3M3 8l5-5 5 5" stroke="currentColor" strokeWidth="2"
-              strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-      </div>
+      <button
+        className={styles.sendBtn}
+        onClick={onSend}
+        disabled={!canSend}
+        aria-label="Send"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M8 13V3M3 8l5-5 5 5" stroke="currentColor" strokeWidth="2"
+            strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
     </div>
   )
 }
