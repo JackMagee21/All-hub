@@ -29,11 +29,35 @@ export interface Conversation {
   id: string
   title: string
   modelId: string
+  modelName: string
   messages: Message[]
   totalCost: number
   totalTokens: number
+  favorite: boolean
   createdAt: number
   updatedAt: number
+}
+
+export function modelBrand(modelId: string): string {
+  if (modelId.startsWith('openai/')) return 'OpenAI'
+  if (modelId.startsWith('anthropic/')) return 'Anthropic'
+  if (modelId.startsWith('google/')) return 'Google'
+  if (modelId.startsWith('deepseek/')) return 'DeepSeek'
+  if (modelId.startsWith('meta-llama/')) return 'Meta'
+  if (modelId.startsWith('mistralai/')) return 'Mistral'
+  if (modelId.startsWith('nex-agi/')) return 'Nex AGI'
+  const slash = modelId.indexOf('/')
+  return slash !== -1 ? modelId.slice(0, slash) : modelId
+}
+
+export function modelBrandColor(modelId: string): string {
+  if (modelId.startsWith('openai/')) return '#74aa9c'
+  if (modelId.startsWith('anthropic/')) return '#cc785c'
+  if (modelId.startsWith('google/')) return '#4285f4'
+  if (modelId.startsWith('deepseek/')) return '#4d6bfe'
+  if (modelId.startsWith('meta-llama/')) return '#0866ff'
+  if (modelId.startsWith('mistralai/')) return '#ff7000'
+  return '#8e8ea0'
 }
 
 export function inputRatePerM(model: RemoteModel): number {
