@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { Message, Usage, RemoteModel, inputRatePerM, outputRatePerM } from '../types'
 import { trimHistory } from '../lib/trimHistory'
+import { AppSettings } from './useSettings'
 
 interface ChatOptions {
   apiKey: string
@@ -12,6 +13,7 @@ interface ChatOptions {
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>
   totalCost: number
   totalTokens: number
+  settings: AppSettings
   onCostsUpdate: (cost: number, tokens: number) => void
   onPersist: (msgs: Message[], cost: number, tokens: number) => Promise<void>
 }
@@ -24,6 +26,7 @@ export function useChat({
   setMessages,
   totalCost,
   totalTokens,
+  settings,
   onCostsUpdate,
   onPersist,
 }: ChatOptions) {
@@ -57,6 +60,7 @@ export function useChat({
     const { messages: trimmed, trimmed: trimCount } = trimHistory(
       [...messages, userMsg],
       selectedModel?.contextLength,
+      settings.trimBudget,
     )
     setTrimmedCount(trimCount)
 
@@ -81,7 +85,6 @@ export function useChat({
 
         if (e.payload) {
           setLastUsage(e.payload)
-
           const turnCost = selectedModel
             ? (e.payload.prompt_tokens / 1_000_000) * inputRatePerM(selectedModel) +
               (e.payload.completion_tokens / 1_000_000) * outputRatePerM(selectedModel)
@@ -89,7 +92,6 @@ export function useChat({
           const turnTokens = e.payload.prompt_tokens + e.payload.completion_tokens
           const newCost = totalCost + turnCost
           const newTokens = totalTokens + turnTokens
-
           onCostsUpdate(newCost, newTokens)
           await onPersist(messagesRef.current, newCost, newTokens)
         }
@@ -99,6 +101,7 @@ export function useChat({
         modelId,
         messages: trimmed.map(m => ({ role: m.role, content: m.content })),
         apiKey,
+        maxTokens: settings.maxTokens,
       })
     } catch (e) {
       setError(String(e))

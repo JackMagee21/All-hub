@@ -16,6 +16,7 @@ export interface TrimResult<T> {
 export function trimHistory<T extends TrimmableMessage>(
   messages: T[],
   contextWindow: number | undefined,
+  budgetFraction: number = 0.5,
 ): TrimResult<T> {
   // If context window is unknown, don't trim
   if (!contextWindow) {

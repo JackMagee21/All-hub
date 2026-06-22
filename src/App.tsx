@@ -3,19 +3,22 @@ import { RemoteModel, inputRatePerM, outputRatePerM } from './types'
 import { useKeychain } from './hooks/useKeychain'
 import { useHistory } from './hooks/useHistory'
 import { useChat } from './hooks/useChat'
+import { useSettings } from './hooks/useSettings'
 import InputBar from './components/Chat/InputBar'
 import MessageBubble from './components/Chat/MessageBubble'
 import TokenCounter from './components/Tokens/TokenCounter'
 import ModelPicker from './components/Sidebar/ModelPicker'
 import Sidebar from './components/Sidebar/Sidebar'
+import SettingsPanel from './components/Settings/SettingPanel'
 import KeySetup from './components/KeySetup'
-import KeyManager from './components/KeyManager'
 import { countTokens } from './lib/tokeniser'
 
 export default function App() {
   const keychain = useKeychain()
   const history = useHistory()
+  const { settings, updateSetting } = useSettings()
   const [selectedModel, setSelectedModel] = useState<RemoteModel | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const chat = useChat({
@@ -26,6 +29,7 @@ export default function App() {
     setMessages: history.setMessages,
     totalCost: history.totalCost,
     totalTokens: history.totalTokens,
+    settings,
     onCostsUpdate: (cost, tokens) => {
       history.setTotalCost(cost)
       history.setTotalTokens(tokens)
@@ -80,6 +84,7 @@ export default function App() {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
 
+        {/* Header */}
         <div style={{
           padding: '10px 16px',
           borderBottom: '1px solid var(--border)',
@@ -89,9 +94,39 @@ export default function App() {
         }}>
           <ModelPicker selectedId={history.modelId} onSelect={handleModelSelect} />
           <div style={{ flex: 1 }} />
-          <KeyManager onCleared={keychain.clearKey} onUpdated={keychain.setApiKey} />
+          <button
+            onClick={() => setSettingsOpen(true)}
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              padding: '5px 10px',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 13,
+              transition: 'color 0.15s, border-color 0.15s',
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLButtonElement).style.color = 'var(--text)'
+              ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.25)'
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'
+              ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)'
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" stroke="currentColor" strokeWidth="2"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" strokeWidth="2"/>
+            </svg>
+            Settings
+          </button>
         </div>
 
+        {/* Messages */}
         <div style={{
           flex: 1,
           overflowY: 'auto',
@@ -118,6 +153,7 @@ export default function App() {
           </div>
         </div>
 
+        {/* Input area */}
         <div style={{
           padding: '12px 16px 20px',
           maxWidth: 'var(--max-width)',
@@ -149,6 +185,16 @@ export default function App() {
         </div>
 
       </div>
+
+      <SettingsPanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        settings={settings}
+        onUpdate={updateSetting}
+        onKeyCleared={() => { keychain.clearKey(); setSettingsOpen(false) }}
+        onKeyUpdated={keychain.setApiKey}
+      />
+
     </div>
   )
 }

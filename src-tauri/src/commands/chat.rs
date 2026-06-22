@@ -8,6 +8,7 @@ pub async fn chat(
     model_id: String,
     messages: Vec<ChatMessage>,
     api_key: String,
+    max_tokens: u32,
 ) -> Result<(), String> {
     let client = reqwest::Client::new();
 
@@ -15,7 +16,7 @@ pub async fn chat(
         "model": model_id,
         "messages": messages,
         "stream": true,
-        "max_tokens": 1024,
+        "max_tokens": max_tokens,
         "stream_options": { "include_usage": true }
     });
 
