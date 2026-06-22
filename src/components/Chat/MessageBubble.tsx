@@ -1,4 +1,5 @@
 import styles from './MessageBubble.module.css'
+import MarkdownContent from './MarkdownContent'
 
 interface Message {
   id: string
@@ -18,11 +19,17 @@ function TypingDots() {
 
 export default function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === 'user'
+
   return (
     <div className={`${styles.row} ${isUser ? styles.userRow : styles.assistantRow}`}>
       {!isUser && <div className={styles.avatar}>A</div>}
       <div className={`${styles.bubble} ${isUser ? styles.userBubble : styles.assistantBubble}`}>
-        {message.content || <TypingDots />}
+        {isUser
+          ? message.content
+          : message.content
+            ? <MarkdownContent content={message.content} />
+            : <TypingDots />
+        }
       </div>
     </div>
   )

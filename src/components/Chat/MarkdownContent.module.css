@@ -1,0 +1,149 @@
+.markdown {
+  line-height: 1.65;
+  word-break: break-word;
+}
+
+/* Paragraphs */
+.markdown p {
+  margin: 0 0 12px;
+}
+
+.markdown p:last-child {
+  margin-bottom: 0;
+}
+
+/* Headings */
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  font-weight: 600;
+  margin: 16px 0 8px;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.markdown h1 { font-size: 18px; }
+.markdown h2 { font-size: 16px; }
+.markdown h3 { font-size: 14px; }
+.markdown h4 { font-size: 13px; }
+
+.markdown h1:first-child,
+.markdown h2:first-child,
+.markdown h3:first-child {
+  margin-top: 0;
+}
+
+/* Lists */
+.markdown ul,
+.markdown ol {
+  margin: 0 0 12px;
+  padding-left: 20px;
+}
+
+.markdown li {
+  margin-bottom: 4px;
+}
+
+.markdown li:last-child {
+  margin-bottom: 0;
+}
+
+.markdown ul {
+  list-style-type: disc;
+}
+
+.markdown ol {
+  list-style-type: decimal;
+}
+
+/* Nested lists */
+.markdown li > ul,
+.markdown li > ol {
+  margin: 4px 0 0;
+}
+
+/* Inline code */
+.inlineCode {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 12.5px;
+  color: #e0a87c;
+}
+
+/* Blockquote */
+.blockquote {
+  border-left: 3px solid var(--accent);
+  margin: 8px 0;
+  padding: 4px 0 4px 14px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.blockquote p {
+  margin: 0;
+}
+
+/* Links */
+.link {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+/* Horizontal rule */
+.markdown hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 16px 0;
+}
+
+/* Strong / Em */
+.markdown strong {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.markdown em {
+  font-style: italic;
+}
+
+/* Tables */
+.tableWrapper {
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+}
+
+.table th,
+.table td {
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  text-align: left;
+}
+
+.table th {
+  background: rgba(255, 255, 255, 0.05);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.table tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Strikethrough */
+.markdown del {
+  opacity: 0.6;
+}
