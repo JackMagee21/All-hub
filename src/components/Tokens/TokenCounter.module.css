@@ -1,0 +1,22 @@
+.bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 4px 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  min-height: 18px;
+}
+
+.live {
+  opacity: 0.7;
+}
+
+.usage {
+  opacity: 0.7;
+}
+
+.cost {
+  color: var(--accent);
+  opacity: 0.9;
+}
