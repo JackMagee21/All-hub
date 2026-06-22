@@ -1,5 +1,5 @@
 export interface ModelPricing {
-  prompt: string       // $ per token as a string e.g. "0.000002"
+  prompt: string
   completion: string
 }
 
@@ -10,7 +10,7 @@ export interface RemoteModel {
   contextLength?: number
   pricing?: ModelPricing
   architecture?: {
-    modality?: string  // e.g. "text->text", "text+image->text"
+    modality?: string
   }
 }
 
@@ -25,7 +25,17 @@ export interface Usage {
   completion_tokens: number
 }
 
-// Helpers
+export interface Conversation {
+  id: string
+  title: string
+  modelId: string
+  messages: Message[]
+  totalCost: number
+  totalTokens: number
+  createdAt: number
+  updatedAt: number
+}
+
 export function inputRatePerM(model: RemoteModel): number {
   return parseFloat(model.pricing?.prompt ?? '0') * 1_000_000
 }
@@ -41,4 +51,10 @@ export function isFree(model: RemoteModel): boolean {
 export function isTextModel(model: RemoteModel): boolean {
   const modality = model.architecture?.modality ?? ''
   return modality.includes('->text') || modality === ''
+}
+
+export function generateTitle(messages: Message[]): string {
+  const first = messages.find(m => m.role === 'user')
+  if (!first) return 'New conversation'
+  return first.content.slice(0, 40) + (first.content.length > 40 ? '…' : '')
 }
