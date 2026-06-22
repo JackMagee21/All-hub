@@ -2,38 +2,44 @@
   position: relative;
 }
 
+/* Compact trigger for input bar */
 .trigger {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 5px 10px;
-  color: var(--text);
-  font-size: 13px;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 6px;
+  color: var(--text-muted);
+  font-size: 12px;
   cursor: pointer;
-  transition: border-color 0.15s;
+  transition: color 0.15s, background 0.15s;
+  max-width: 180px;
+}
+
+.trigger:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.triggerText {
   white-space: nowrap;
-  max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.trigger:hover {
-  border-color: rgba(255, 255, 255, 0.25);
-}
-
+/* Dropdown opens upward */
 .dropdown {
   position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
+  bottom: calc(100% + 8px);
+  right: 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
   width: 320px;
   z-index: 100;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -78,6 +84,7 @@
   font-size: 12px;
   cursor: pointer;
   transition: all 0.1s;
+  white-space: nowrap;
 }
 
 .activeTab {
@@ -95,22 +102,14 @@
   padding: 20px;
   text-align: center;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .option {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 8px 12px;
-  background: transparent;
-  border: none;
-  color: var(--text);
-  cursor: pointer;
-  text-align: left;
   transition: background 0.1s;
-  gap: 8px;
 }
 
 .option:hover {
@@ -119,6 +118,21 @@
 
 .selected .optionName {
   color: var(--accent);
+}
+
+.optionMain {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  padding: 8px 4px 8px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  gap: 8px;
+  min-width: 0;
 }
 
 .optionLeft {
@@ -160,4 +174,26 @@
 .price {
   font-size: 11px;
   color: var(--text-muted);
+}
+
+.starBtn {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 8px 10px 8px 4px;
+  opacity: 0;
+  transition: opacity 0.1s, color 0.1s;
+  line-height: 1;
+}
+
+.option:hover .starBtn {
+  opacity: 1;
+}
+
+.starred {
+  color: #f0c040 !important;
+  opacity: 1 !important;
 }

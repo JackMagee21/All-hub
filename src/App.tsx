@@ -4,6 +4,7 @@ import { useKeychain } from './hooks/useKeychain'
 import { useHistory } from './hooks/useHistory'
 import { useChat } from './hooks/useChat'
 import { useSettings } from './hooks/useSettings'
+import { getFavoriteModels, setFavoriteModels } from './lib/db'
 import InputBar from './components/Chat/InputBar'
 import MessageBubble from './components/Chat/MessageBubble'
 import TokenCounter from './components/Tokens/TokenCounter'
@@ -19,6 +20,7 @@ export default function App() {
   const { settings, updateSetting } = useSettings()
   const [selectedModel, setSelectedModel] = useState<RemoteModel | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [favoriteModelIds, setFavoriteModelIds] = useState<string[]>([])
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const chat = useChat({
@@ -39,12 +41,24 @@ export default function App() {
   })
 
   useEffect(() => {
+    getFavoriteModels().then(setFavoriteModelIds)
+  }, [])
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [history.messages])
 
   function handleModelSelect(model: RemoteModel) {
     setSelectedModel(model)
     history.setModelId(model.id)
+  }
+
+  async function handleToggleFavoriteModel(id: string) {
+    const next = favoriteModelIds.includes(id)
+      ? favoriteModelIds.filter(f => f !== id)
+      : [...favoriteModelIds, id]
+    setFavoriteModelIds(next)
+    await setFavoriteModels(next)
   }
 
   const liveTokens = countTokens(chat.input)
@@ -90,10 +104,8 @@ export default function App() {
           borderBottom: '1px solid var(--border)',
           display: 'flex',
           alignItems: 'center',
-          gap: 10,
+          justifyContent: 'flex-end',
         }}>
-          <ModelPicker selectedId={history.modelId} onSelect={handleModelSelect} />
-          <div style={{ flex: 1 }} />
           <button
             onClick={() => setSettingsOpen(true)}
             style={{
@@ -110,12 +122,14 @@ export default function App() {
               transition: 'color 0.15s, border-color 0.15s',
             }}
             onMouseEnter={e => {
-              (e.currentTarget as HTMLButtonElement).style.color = 'var(--text)'
-              ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.25)'
+              const btn = e.currentTarget as HTMLButtonElement
+              btn.style.color = 'var(--text)'
+              btn.style.borderColor = 'rgba(255,255,255,0.25)'
             }}
             onMouseLeave={e => {
-              (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'
-              ;(e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)'
+              const btn = e.currentTarget as HTMLButtonElement
+              btn.style.color = 'var(--text-muted)'
+              btn.style.borderColor = 'var(--border)'
             }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -147,7 +161,9 @@ export default function App() {
               <MessageBubble key={msg.id} message={msg} />
             ))}
             {chat.error && (
-              <p style={{ color: '#e05c5c', fontSize: 13, marginTop: 8 }}>{chat.error}</p>
+              <p style={{ color: '#e05c5c', fontSize: 13, marginTop: 8 }}>
+                {chat.error}
+              </p>
             )}
             <div ref={bottomRef} />
           </div>
@@ -181,6 +197,14 @@ export default function App() {
             onInputChange={chat.setInput}
             onSend={chat.send}
             disabled={chat.isStreaming}
+            modelPicker={
+              <ModelPicker
+                selectedId={history.modelId}
+                onSelect={handleModelSelect}
+                favoriteIds={favoriteModelIds}
+                onToggleFavorite={handleToggleFavoriteModel}
+              />
+            }
           />
         </div>
 

@@ -6,9 +6,10 @@ interface Props {
   onInputChange: (val: string) => void
   onSend: () => void
   disabled?: boolean
+  modelPicker?: React.ReactNode
 }
 
-export default function InputBar({ input, onInputChange, onSend, disabled }: Props) {
+export default function InputBar({ input, onInputChange, onSend, disabled, modelPicker }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -39,17 +40,22 @@ export default function InputBar({ input, onInputChange, onSend, disabled }: Pro
         rows={1}
         disabled={disabled}
       />
-      <button
-        className={styles.sendBtn}
-        onClick={onSend}
-        disabled={!canSend}
-        aria-label="Send"
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M8 13V3M3 8l5-5 5 5" stroke="currentColor" strokeWidth="2"
-            strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
+      <div className={styles.bottomBar}>
+        <div className={styles.bottomLeft}>
+          {modelPicker}
+        </div>
+        <button
+          className={styles.sendBtn}
+          onClick={onSend}
+          disabled={!canSend}
+          aria-label="Send"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 13V3M3 8l5-5 5 5" stroke="currentColor" strokeWidth="2"
+              strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
     </div>
   )
 }

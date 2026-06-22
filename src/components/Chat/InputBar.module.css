@@ -1,12 +1,10 @@
 .container {
-  position: relative;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
   background: var(--input-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-input);
-  padding: 8px 10px 8px 16px;
+  padding: 12px 10px 8px 16px;
   transition: border-color 0.15s;
 }
 
@@ -15,7 +13,6 @@
 }
 
 .textarea {
-  flex: 1;
   background: transparent;
   border: none;
   outline: none;
@@ -27,6 +24,7 @@
   min-height: 24px;
   max-height: 200px;
   overflow-y: auto;
+  width: 100%;
 }
 
 .textarea::placeholder {
@@ -35,6 +33,18 @@
 
 .textarea:disabled {
   opacity: 0.6;
+}
+
+.bottomBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.bottomLeft {
+  flex: 1;
+  min-width: 0;
 }
 
 .sendBtn {

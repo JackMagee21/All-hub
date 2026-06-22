@@ -59,3 +59,11 @@ export async function getSetting<T>(key: string, fallback: T): Promise<T> {
 export async function setSetting<T>(key: string, value: T): Promise<void> {
   await (await dbPromise).put('settings', { key, value })
 }
+
+export async function getFavoriteModels(): Promise<string[]> {
+  return getSetting<string[]>('favoriteModels', [])
+}
+
+export async function setFavoriteModels(ids: string[]): Promise<void> {
+  await setSetting('favoriteModels', ids)
+}
