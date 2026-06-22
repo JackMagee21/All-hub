@@ -8,9 +8,10 @@ interface Props {
   onSelect: (conv: Conversation) => void
   onNew: () => void
   onDelete: (id: string) => void
+  onFavorite: (id: string) => void
 }
 
-export default function Sidebar({ conversations, activeId, onSelect, onNew, onDelete }: Props) {
+export default function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, onFavorite }: Props) {
   return (
     <div className={styles.sidebar}>
       <div className={styles.header}>
@@ -26,6 +27,7 @@ export default function Sidebar({ conversations, activeId, onSelect, onNew, onDe
         activeId={activeId}
         onSelect={onSelect}
         onDelete={onDelete}
+        onFavorite={onFavorite}
       />
     </div>
   )

@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import {
   RemoteModel, Message, Usage, Conversation,
-  inputRatePerM, outputRatePerM, generateTitle
+  inputRatePerM, outputRatePerM, generateTitle, modelBrand
 } from './types'
 import InputBar from './components/Chat/InputBar'
 import MessageBubble from './components/Chat/MessageBubble'
@@ -13,13 +13,18 @@ import Sidebar from './components/Sidebar/Sidebar'
 import KeySetup from './components/KeySetup'
 import KeyManager from './components/KeyManager'
 import { countTokens } from './lib/tokeniser'
-import { saveConversation, loadConversations, deleteConversation } from './lib/db'
+import {
+  saveConversation,
+  loadConversations,
+  deleteConversation,
+  toggleFavorite
+} from './lib/db'
 
 const DEFAULT_MODEL = 'openai/gpt-4.1-mini'
 
 type KeyState = 'loading' | 'missing' | 'ready'
 
-function newConversationId() {
+function newConversationId(): string {
   return crypto.randomUUID()
 }
 
@@ -45,7 +50,7 @@ export default function App() {
   // Keep ref in sync for use inside event callbacks
   useEffect(() => { messagesRef.current = messages }, [messages])
 
-  // Load API key
+  // Load API key from keychain
   useEffect(() => {
     invoke<string | null>('get_key')
       .then(key => {
@@ -60,6 +65,7 @@ export default function App() {
     loadConversations().then(setConversations)
   }, [])
 
+  // Auto-scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
@@ -102,8 +108,13 @@ export default function App() {
 
   async function handleDeleteConversation(id: string) {
     await deleteConversation(id)
-    setConversations(prev => prev.filter(c => c.id !== id))
+    setConversations(await loadConversations())
     if (id === conversationId) handleNewConversation()
+  }
+
+  async function handleFavoriteConversation(id: string) {
+    await toggleFavorite(id)
+    setConversations(await loadConversations())
   }
 
   const persistConversation = useCallback(async (
@@ -112,19 +123,22 @@ export default function App() {
     tokens: number,
     currentModelId: string,
   ) => {
+    const existing = conversations.find(c => c.id === conversationId)
     const conv: Conversation = {
       id: conversationId,
       title: generateTitle(msgs),
       modelId: currentModelId,
+      modelName: selectedModel?.name ?? modelBrand(currentModelId),
       messages: msgs,
       totalCost: cost,
       totalTokens: tokens,
-      createdAt: Date.now(),
+      favorite: existing?.favorite ?? false,
+      createdAt: existing?.createdAt ?? Date.now(),
       updatedAt: Date.now(),
     }
     await saveConversation(conv)
     setConversations(await loadConversations())
-  }, [conversationId])
+  }, [conversationId, conversations, selectedModel])
 
   const liveTokens = countTokens(input)
 
@@ -144,9 +158,8 @@ export default function App() {
 
     const userMsg: Message = { id: Date.now().toString(), role: 'user', content: input }
     const assistantMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: '' }
-    const newMessages = [...messages, userMsg, assistantMsg]
 
-    setMessages(newMessages)
+    setMessages(prev => [...prev, userMsg, assistantMsg])
     setInput('')
 
     // Save after user message
@@ -171,6 +184,7 @@ export default function App() {
 
         if (e.payload) {
           setLastUsage(e.payload)
+
           const turnCost = selectedModel
             ? (e.payload.prompt_tokens / 1_000_000) * inputRatePerM(selectedModel) +
               (e.payload.completion_tokens / 1_000_000) * outputRatePerM(selectedModel)
@@ -178,11 +192,17 @@ export default function App() {
           const turnTokens = e.payload.prompt_tokens + e.payload.completion_tokens
           const newTotalCost = totalCost + turnCost
           const newTotalTokens = totalTokens + turnTokens
+
           setTotalCost(newTotalCost)
           setTotalTokens(newTotalTokens)
 
           // Save after assistant response with updated costs
-          await persistConversation(messagesRef.current, newTotalCost, newTotalTokens, modelId)
+          await persistConversation(
+            messagesRef.current,
+            newTotalCost,
+            newTotalTokens,
+            modelId,
+          )
         }
       })
 
@@ -225,9 +245,10 @@ export default function App() {
         onSelect={handleSelectConversation}
         onNew={handleNewConversation}
         onDelete={handleDeleteConversation}
+        onFavorite={handleFavoriteConversation}
       />
 
-      {/* Main */}
+      {/* Main content */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
 
         {/* Header */}

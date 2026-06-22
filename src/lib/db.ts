@@ -28,3 +28,10 @@ export async function loadConversations(): Promise<Conversation[]> {
 export async function deleteConversation(id: string): Promise<void> {
   await (await dbPromise).delete('conversations', id)
 }
+
+export async function toggleFavorite(id: string): Promise<void> {
+  const db = await dbPromise
+  const conv = await db.get('conversations', id)
+  if (!conv) return
+  await db.put('conversations', { ...conv, favorite: !conv.favorite })
+}
