@@ -82,3 +82,22 @@ export function generateTitle(messages: Message[]): string {
   if (!first) return 'New conversation'
   return first.content.slice(0, 40) + (first.content.length > 40 ? '…' : '')
 }
+
+export interface ToolCall {
+  id: string
+  name: string
+  arguments: string
+}
+
+export interface PendingToolCall {
+  id: string
+  name: string
+  arguments: string
+  parsedArgs: Record<string, string>
+}
+
+export interface ToolResult {
+  toolCallId: string
+  result: string
+  approved: boolean
+}

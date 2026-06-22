@@ -13,14 +13,17 @@ import Sidebar from './components/Sidebar/Sidebar'
 import SettingsPanel from './components/Settings/SettingPanel'
 import KeySetup from './components/KeySetup'
 import { countTokens } from './lib/tokeniser'
+import FileApprovalDialog from './components/Tools/FileApprovalDialog'
 
 export default function App() {
   const keychain = useKeychain()
   const history = useHistory()
   const { settings, updateSetting } = useSettings()
+
   const [selectedModel, setSelectedModel] = useState<RemoteModel | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [favoriteModelIds, setFavoriteModelIds] = useState<string[]>([])
+
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const chat = useChat({
@@ -68,25 +71,34 @@ export default function App() {
       (chat.lastUsage.completion_tokens / 1_000_000) * outputRatePerM(selectedModel)
     : undefined
 
-  if (keychain.keyState === 'loading') return (
-    <div style={{
-      height: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: 'var(--text-muted)',
-    }}>
-      Loading…
-    </div>
-  )
+  // ── Loading ──────────────────────────────────────────────────────────────
+  if (keychain.keyState === 'loading') {
+    return (
+      <div style={{
+        height: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'var(--text-muted)',
+        fontSize: 13,
+        letterSpacing: '0.01em',
+        background: 'var(--bg)',
+      }}>
+        Loading…
+      </div>
+    )
+  }
 
-  if (keychain.keyState === 'missing') return (
-    <KeySetup onSave={keychain.saveKey} />
-  )
+  // ── First launch ──────────────────────────────────────────────────────────
+  if (keychain.keyState === 'missing') {
+    return <KeySetup onSave={keychain.saveKey} />
+  }
 
+  // ── Main ──────────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
+    <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)' }}>
 
+      {/* Sidebar */}
       <Sidebar
         conversations={history.conversations}
         activeId={history.activeId}
@@ -96,11 +108,14 @@ export default function App() {
         onFavorite={history.toggleFavoriteConversation}
       />
 
+      {/* Main content */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
 
         {/* Header */}
         <div style={{
-          padding: '10px 16px',
+          height: 52,
+          flexShrink: 0,
+          padding: '0 16px',
           borderBottom: '1px solid var(--border)',
           display: 'flex',
           alignItems: 'center',
@@ -111,28 +126,32 @@ export default function App() {
             style={{
               background: 'transparent',
               border: '1px solid var(--border)',
-              borderRadius: 8,
+              borderRadius: 'var(--r-sm)',
               padding: '5px 10px',
               color: 'var(--text-muted)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: 6,
-              fontSize: 13,
-              transition: 'color 0.15s, border-color 0.15s',
+              fontSize: 12,
+              fontWeight: 500,
+              fontFamily: 'inherit',
+              transition: 'color 120ms ease, border-color 120ms ease, background 120ms ease',
             }}
             onMouseEnter={e => {
-              const btn = e.currentTarget as HTMLButtonElement
-              btn.style.color = 'var(--text)'
-              btn.style.borderColor = 'rgba(255,255,255,0.25)'
+              const b = e.currentTarget as HTMLButtonElement
+              b.style.color = 'var(--text)'
+              b.style.borderColor = 'var(--border-strong)'
+              b.style.background = 'var(--surface-hover)'
             }}
             onMouseLeave={e => {
-              const btn = e.currentTarget as HTMLButtonElement
-              btn.style.color = 'var(--text-muted)'
-              btn.style.borderColor = 'var(--border)'
+              const b = e.currentTarget as HTMLButtonElement
+              b.style.color = 'var(--text-muted)'
+              b.style.borderColor = 'var(--border)'
+              b.style.background = 'transparent'
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
               <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" stroke="currentColor" strokeWidth="2"/>
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" strokeWidth="2"/>
             </svg>
@@ -145,33 +164,52 @@ export default function App() {
           flex: 1,
           overflowY: 'auto',
           overflowX: 'hidden',
-          padding: '24px 16px',
+          padding: '32px 16px',
         }}>
           <div style={{ maxWidth: 'var(--max-width)', margin: '0 auto' }}>
+
             {history.messages.length === 0 && (
-              <p style={{
-                color: 'var(--text-muted)',
-                textAlign: 'center',
-                marginTop: 60,
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                paddingTop: 80,
+                gap: 8,
               }}>
-                Start a conversation
-              </p>
+                <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
+                  Start a conversation
+                </p>
+                <p style={{ color: 'var(--text-muted)', fontSize: 12, opacity: 0.6 }}>
+                  Select a model below and type a message
+                </p>
+              </div>
             )}
+
             {history.messages.map(msg => (
               <MessageBubble key={msg.id} message={msg} />
             ))}
+
             {chat.error && (
-              <p style={{ color: '#e05c5c', fontSize: 13, marginTop: 8 }}>
+              <div style={{
+                background: 'var(--red-dim)',
+                border: '1px solid rgba(255, 69, 58, 0.2)',
+                borderRadius: 'var(--r-md)',
+                padding: '12px 16px',
+                color: 'var(--red)',
+                fontSize: 13,
+                marginTop: 8,
+              }}>
                 {chat.error}
-              </p>
+              </div>
             )}
+
             <div ref={bottomRef} />
           </div>
         </div>
 
         {/* Input area */}
         <div style={{
-          padding: '12px 16px 20px',
+          padding: '8px 16px 20px',
           maxWidth: 'var(--max-width)',
           margin: '0 auto',
           width: '100%',
@@ -181,7 +219,8 @@ export default function App() {
               fontSize: 11,
               color: 'var(--text-muted)',
               textAlign: 'center',
-              marginBottom: 4,
+              marginBottom: 6,
+              opacity: 0.7,
             }}>
               {chat.trimmedCount} older {chat.trimmedCount === 1 ? 'message' : 'messages'} trimmed to fit context window
             </p>
@@ -210,14 +249,26 @@ export default function App() {
 
       </div>
 
+      {/* Settings drawer */}
       <SettingsPanel
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         settings={settings}
         onUpdate={updateSetting}
-        onKeyCleared={() => { keychain.clearKey(); setSettingsOpen(false) }}
+        onKeyCleared={() => {
+          keychain.clearKey()
+          setSettingsOpen(false)
+        }}
         onKeyUpdated={keychain.setApiKey}
       />
+
+      {chat.pendingToolCalls.length > 0 && (
+  <FileApprovalDialog
+    toolCalls={chat.pendingToolCalls}
+    onApprove={chat.handleToolApproval}
+    onRejectAll={chat.handleToolRejectAll}
+  />
+)}
 
     </div>
   )

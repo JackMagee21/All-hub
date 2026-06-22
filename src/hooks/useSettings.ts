@@ -4,11 +4,13 @@ import { getSetting, setSetting } from '../lib/db'
 export interface AppSettings {
   maxTokens: number
   trimBudget: number
+  toolsEnabled: boolean
 }
 
 const DEFAULTS: AppSettings = {
   maxTokens: 1024,
   trimBudget: 0.5,
+  toolsEnabled: false,
 }
 
 export function useSettings() {
@@ -19,8 +21,9 @@ export function useSettings() {
     Promise.all([
       getSetting('maxTokens', DEFAULTS.maxTokens),
       getSetting('trimBudget', DEFAULTS.trimBudget),
-    ]).then(([maxTokens, trimBudget]) => {
-      setSettings({ maxTokens, trimBudget })
+      getSetting('toolsEnabled', DEFAULTS.toolsEnabled),
+    ]).then(([maxTokens, trimBudget, toolsEnabled]) => {
+      setSettings({ maxTokens, trimBudget, toolsEnabled })
       setLoaded(true)
     })
   }, [])

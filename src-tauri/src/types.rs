@@ -1,11 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ChatMessage {
-    pub role: String,
-    pub content: String,
-}
-
 #[derive(Serialize, Clone)]
 pub struct Usage {
     pub prompt_tokens: u32,

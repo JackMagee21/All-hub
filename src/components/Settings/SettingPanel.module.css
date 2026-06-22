@@ -208,3 +208,43 @@
   font-size: 11px;
   color: var(--text-muted);
 }
+
+.toggleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s4);
+}
+
+.toggle {
+  flex-shrink: 0;
+  width: 40px;
+  height: 24px;
+  background: var(--surface-active);
+  border: none;
+  border-radius: var(--r-full);
+  cursor: pointer;
+  position: relative;
+  transition: background var(--t-base);
+  margin-top: 2px;
+}
+
+.toggleOn {
+  background: var(--accent);
+}
+
+.toggleThumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  background: white;
+  border-radius: var(--r-full);
+  transition: transform var(--t-base);
+  box-shadow: var(--shadow-sm);
+}
+
+.toggleOn .toggleThumb {
+  transform: translateX(16px);
+}

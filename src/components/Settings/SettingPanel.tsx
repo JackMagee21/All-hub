@@ -117,6 +117,28 @@ export default function SettingsPanel({
 
           <div className={styles.divider} />
 
+          {/* Tools Section */}
+<section className={styles.section}>
+  <h3 className={styles.sectionTitle}>Tools</h3>
+
+  <div className={styles.field}>
+    <div className={styles.toggleRow}>
+      <div>
+        <div className={styles.label}>File creation</div>
+        <p className={styles.hint}>
+          Allow the AI to create and read files on your computer. You'll approve every action before it runs.
+        </p>
+      </div>
+      <button
+        className={`${styles.toggle} ${settings.toolsEnabled ? styles.toggleOn : ''}`}
+        onClick={() => onUpdate('toolsEnabled', !settings.toolsEnabled)}
+        aria-label="Toggle file tools"
+      >
+        <span className={styles.toggleThumb} />
+      </button>
+    </div>
+  </div>
+  </section>
           {/* Generation Section */}
           <section className={styles.section}>
             <h3 className={styles.sectionTitle}>Generation</h3>
